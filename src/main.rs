@@ -77,7 +77,10 @@ impl App {
                 println!("player {id} timed out");
                 if let Err(e) = self
                     .requester
-                    .send_group_msg(self.config.qq_notice_group_id, "你已经超时了！")
+                    .send_group_msg(
+                        self.config.qq_notice_group_id,
+                        &format!("{id} 离开了服务器"),
+                    )
                     .await
                 {
                     eprintln!("notify failed for {id}: {e}");

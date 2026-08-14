@@ -44,7 +44,7 @@ impl App {
                     self.requester
                         .send_group_msg(
                             self.config.qq_notice_group_id,
-                            &format!("Hello {}", heartbeat.id),
+                            &format!("{} 加入了服务器", heartbeat.id),
                         )
                         .await?;
                 }
