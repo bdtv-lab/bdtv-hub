@@ -1,0 +1,5 @@
+qq_http_api_base_url: http://127.0.0.1:3000
+qq_http_api_token: null
+ws_listen_addr: 0.0.0.0:7497
+check_interval: 15
+timeout: 30
