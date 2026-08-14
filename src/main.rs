@@ -12,7 +12,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{MissedTickBehavior, interval};
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::action::{Action, Players, handle_action};
+use crate::action::{Action, Players};
 use crate::config::{Config, load_config};
 
 struct App {
@@ -95,7 +95,7 @@ impl App {
             match msg? {
                 Message::Text(text) => {
                     let action: Action = serde_json::from_str(&text)?;
-                    handle_action(action, &self.players)?;
+                    self.handle_action(action, &self.players).await?;
                 }
                 Message::Close(_) => break,
                 _ => {}

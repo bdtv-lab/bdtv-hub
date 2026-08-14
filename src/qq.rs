@@ -16,10 +16,10 @@ impl ReQuester {
         }
     }
 
-    pub async fn send_group_msg(&self, user_id: u64, message: &str) -> Result<()> {
+    pub async fn send_group_msg(&self, group_id: u64, message: &str) -> Result<()> {
         let url = format!("{}/send_group_msg", self.base_url);
         let data = serde_json::json!({
-            "group_id": user_id,
+            "group_id": group_id,
             "message": message,
         });
 
