@@ -16,10 +16,10 @@ impl ReQuester {
         }
     }
 
-    pub async fn send_private_message(&self, user_id: u64, message: &str) -> Result<()> {
-        let url = format!("{}/send_private_msg", self.base_url);
+    pub async fn send_group_msg(&self, user_id: u64, message: &str) -> Result<()> {
+        let url = format!("{}/send_group_msg", self.base_url);
         let data = serde_json::json!({
-            "user_id": user_id,
+            "group_id": user_id,
             "message": message,
         });
 
@@ -32,7 +32,7 @@ impl ReQuester {
         let status = res.status();
         if !status.is_success() {
             return Err(anyhow::anyhow!(
-                "Failed to send private message: {status} {}",
+                "Failed to send group message: {status} {}",
                 res.text().await?
             ));
         }

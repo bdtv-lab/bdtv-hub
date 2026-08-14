@@ -10,6 +10,7 @@ const CONFIG_PATH: &str = "config.yaml";
 pub struct Config {
     pub qq_http_api_base_url: String,
     pub qq_http_api_token: Option<String>,
+    pub qq_notice_group_id: u64,
 
     pub ws_listen_addr: String,
     pub check_interval: u64,
@@ -21,6 +22,7 @@ impl Default for Config {
         Self {
             qq_http_api_base_url: "http://127.0.0.1:3000".to_string(),
             qq_http_api_token: None,
+            qq_notice_group_id: 12345678,
             ws_listen_addr: "0.0.0.0:7497".to_string(),
             check_interval: 15,
             timeout: 30,

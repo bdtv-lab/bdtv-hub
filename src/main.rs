@@ -58,18 +58,31 @@ impl App {
         loop {
             ticker.tick().await;
 
-            let mut players = self.players.lock().unwrap();
-            players.retain(|id, last| {
-                let alive = last.elapsed() <= Duration::from_secs(self.config.timeout);
-                if !alive {
-                    println!("player {id} timed out");
-                    let _ = self
-                        .requester
-                        .send_private_message(2797880090, "你已经超时了！");
+            let timeout = Duration::from_secs(self.config.timeout);
+            let dead: Vec<String> = {
+                let mut players = self.players.lock().unwrap();
+                let mut dead = Vec::new();
+                players.retain(|id, last| {
+                    let alive = last.elapsed() <= timeout;
+                    if !alive {
+                        dead.push(id.clone());
+                    }
+                    alive
+                });
+                println!("check: {} online", players.len());
+                dead
+            }; // 锁在这里释放，下面才能 await
+
+            for id in dead {
+                println!("player {id} timed out");
+                if let Err(e) = self
+                    .requester
+                    .send_group_msg(self.config.qq_notice_group_id, "你已经超时了！")
+                    .await
+                {
+                    eprintln!("notify failed for {id}: {e}");
                 }
-                alive
-            });
-            println!("check: {} online", players.len());
+            }
         }
     }
 
