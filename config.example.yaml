@@ -1,6 +1,0 @@
-qq_http_api_base_url: http://127.0.0.1:3000
-qq_http_api_token: null
-qq_notice_group_id: 12345678
-ws_listen_addr: 0.0.0.0:7497
-check_interval: 15
-timeout: 30

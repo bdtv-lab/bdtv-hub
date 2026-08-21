@@ -1,115 +1,66 @@
-mod action;
-mod config;
-mod qq;
+mod console;
+mod logging;
+mod server;
+mod warden;
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use smaragdine::Printer;
+use std::sync::Arc;
+use tokio::{sync::Mutex, task::JoinSet};
+use tokio_util::sync::CancellationToken;
 
-use anyhow::Result;
-use futures_util::StreamExt;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::time::{MissedTickBehavior, interval};
-use tokio_tungstenite::tungstenite::Message;
+use crate::{console::console, server::http_server, warden::warden};
 
-use crate::action::{Action, Players};
-use crate::config::{Config, load_config};
-
-struct App {
-    players: Players,
-    config: Config,
-    requester: qq::ReQuester,
-}
-
-impl App {
-    fn new(config: Config) -> Self {
-        Self {
-            players: Mutex::new(HashMap::new()),
-            config: config.clone(),
-            requester: qq::ReQuester::new(&config.qq_http_api_base_url, config.qq_http_api_token),
-        }
-    }
-
-    async fn run(self: Arc<Self>) -> Result<()> {
-        tokio::spawn(self.clone().check_loop());
-
-        let listener = TcpListener::bind(&self.config.ws_listen_addr).await?;
-        println!("listening on ws://{}", self.config.ws_listen_addr);
-
-        while let Ok((stream, peer)) = listener.accept().await {
-            let app = self.clone();
-            tokio::spawn(async move {
-                if let Err(e) = app.handle(stream).await {
-                    eprintln!("{peer} error: {e}");
-                }
-                println!("{peer} disconnected");
-            });
-        }
-
-        Ok(())
-    }
-
-    /// 每 30 秒扫一遍，剔除心跳超时的玩家
-    async fn check_loop(self: Arc<Self>) {
-        let mut ticker = interval(Duration::from_secs(self.config.check_interval));
-        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
-        ticker.tick().await; // 第一拍立即返回，吃掉它
-
-        loop {
-            ticker.tick().await;
-
-            let timeout = Duration::from_secs(self.config.timeout);
-            let dead: Vec<String> = {
-                let mut players = self.players.lock().unwrap();
-                let mut dead = Vec::new();
-                players.retain(|id, last| {
-                    let alive = last.elapsed() <= timeout;
-                    if !alive {
-                        dead.push(id.clone());
-                    }
-                    alive
-                });
-                println!("check: {} online", players.len());
-                dead
-            }; // 锁在这里释放，下面才能 await
-
-            for id in dead {
-                println!("player {id} timed out");
-                if let Err(e) = self
-                    .requester
-                    .send_group_msg(
-                        self.config.qq_notice_group_id,
-                        &format!("{id} 离开了服务器"),
-                    )
-                    .await
-                {
-                    eprintln!("notify failed for {id}: {e}");
-                }
-            }
-        }
-    }
-
-    async fn handle(&self, stream: TcpStream) -> Result<()> {
-        let peer = stream.peer_addr()?;
-        let mut ws = tokio_tungstenite::accept_async(stream).await?;
-        println!("{peer} connected");
-
-        while let Some(msg) = ws.next().await {
-            match msg? {
-                Message::Text(text) => {
-                    let action: Action = serde_json::from_str(&text)?;
-                    self.handle_action(action, &self.players).await?;
-                }
-                Message::Close(_) => break,
-                _ => {}
-            }
-        }
-
-        Ok(())
-    }
+#[derive(Debug, Default)]
+struct AppState {
+    online_players: Mutex<u32>,
+    printer: Printer,
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    Arc::new(App::new(load_config()?)).run().await
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let state = Arc::new(AppState::default());
+    logging::init(&state);
+
+    let token = CancellationToken::new();
+    let mut set = JoinSet::new();
+
+    // 启动控制台
+    set.spawn(console(Arc::clone(&state), token.clone()));
+    // 启动 http 服务器
+    set.spawn(http_server(Arc::clone(&state), token.clone()));
+    // 启动在线状态巡检
+    set.spawn(warden(Arc::clone(&state), token.clone()));
+    // 启动关闭信号监听
+    set.spawn(shutdown_signal(token));
+
+    // 关键：等所有任务真正退出，main 才会返回
+    while let Some(res) = set.join_next().await {
+        if let Err(e) = res {
+            tracing::error!("某个任务 panic 了: {e}");
+        }
+    }
+    tracing::info!("全部服务已退出");
+
+    Ok(())
+}
+
+async fn shutdown_signal(token: CancellationToken) {
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("无法监听 SIGTERM")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => tracing::info!("收到 Ctrl+C"),
+        _ = terminate => tracing::info!("收到 SIGTERM"),
+        _ = token.cancelled() => return,
+    }
+
+    token.cancel();
 }
