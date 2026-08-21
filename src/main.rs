@@ -1,24 +1,21 @@
+mod app;
 mod console;
+mod envconf;
 mod logging;
 mod server;
 mod warden;
 
-use smaragdine::Printer;
 use std::sync::Arc;
-use tokio::{sync::Mutex, task::JoinSet};
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
-use crate::{console::console, server::http_server, warden::warden};
-
-#[derive(Debug, Default)]
-struct AppState {
-    online_players: Mutex<u32>,
-    printer: Printer,
-}
+use crate::{app::AppState, console::console, server::http_server, warden::warden};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 初始化应用状态
     let state = Arc::new(AppState::default());
+    // 初始化日志系统
     logging::init(&state);
 
     let token = CancellationToken::new();
@@ -36,10 +33,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 关键：等所有任务真正退出，main 才会返回
     while let Some(res) = set.join_next().await {
         if let Err(e) = res {
-            tracing::error!("某个任务 panic 了: {e}");
+            tracing::error!("发生 panic: {e}");
         }
     }
-    tracing::info!("全部服务已退出");
+    tracing::info!("服务已退出");
 
     Ok(())
 }
