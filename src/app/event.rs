@@ -1,5 +1,6 @@
+use crate::types::Player;
 
 pub enum Event {
-    PlayerJoined,
-    PlayerLeft,
+    PlayerJoined(Player),
+    PlayerLeft(Player),
 }

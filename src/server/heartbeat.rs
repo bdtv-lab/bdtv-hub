@@ -8,7 +8,7 @@ use crate::{app, types::Player};
 
 #[derive(Debug, Clone, Deserialize)]
 pub(super) struct PlayerBeat {
-    pub timestamp: u64,
+    pub timestamp: i64,
     pub player: Player,
 }
 
