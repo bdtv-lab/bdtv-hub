@@ -61,7 +61,7 @@ pub async fn qq_requester(
                 };
 
                 if let Err(e) = requester.handle_event(&event).await {
-                    error!("处理事件失败: {e}");
+                    error!("处理事件失败: {e:#}");
                 }
             }
         }

@@ -43,10 +43,11 @@ impl State {
         // 如果是新玩家则发送事件
         if is_new {
             debug!("Player {} joined server", player.nickname);
-            let _ = self.event_tx.send(Event::PlayerJoined(player)).await;
 
             let count = self.unique_player_count().await;
             let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
+
+            let _ = self.event_tx.send(Event::PlayerJoined(player)).await;
         }
     }
 
@@ -55,35 +56,39 @@ impl State {
         // 用于存储超时的玩家
         let mut timeout_players = Vec::new();
 
-        let mut online_players = self.online_players.lock().await;
-        let now = Instant::now();
+        // 限制锁的作用域
+        {
+            let mut online_players = self.online_players.lock().await;
+            let now = Instant::now();
 
-        // 遍历每个服务器的在线玩家
-        for (_, players) in online_players.iter_mut() {
-            // 临时存储超时的 UUID
-            // 避免迭代时修改
-            let mut timed_out_uuids = Vec::new();
+            // 遍历每个服务器的在线玩家
+            for (_, players) in online_players.iter_mut() {
+                // 临时存储超时的 UUID
+                // 避免迭代时修改
+                let mut timed_out_uuids = Vec::new();
 
-            // 检查每个玩家的心跳时间
-            for (uuid, (player, last_heartbeat)) in players.iter() {
-                if now.duration_since(*last_heartbeat).as_secs() > timeout {
-                    timed_out_uuids.push(*uuid);
-                    timeout_players.push(player.clone());
+                // 检查每个玩家的心跳时间
+                for (uuid, (player, last_heartbeat)) in players.iter() {
+                    if now.duration_since(*last_heartbeat).as_secs() > timeout {
+                        timed_out_uuids.push(*uuid);
+                        timeout_players.push(player.clone());
+                    }
                 }
-            }
 
-            for uuid in timed_out_uuids {
-                players.remove(&uuid);
+                for uuid in timed_out_uuids {
+                    players.remove(&uuid);
+                }
             }
         }
 
         // 发送超时玩家离开的事件
         for player in timeout_players {
             debug!("Player {} left server", player.nickname);
-            let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
 
             let count = self.unique_player_count().await;
             let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
+
+            let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
         }
     }
 

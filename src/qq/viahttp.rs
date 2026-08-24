@@ -9,7 +9,10 @@ use serde_json::Value;
 
 use crate::{
     app,
-    qq::{ReQuester, viahttp::types::LoginInfo},
+    qq::{
+        ReQuester,
+        viahttp::types::{ApiResponse, LoginInfo},
+    },
 };
 
 #[derive(Debug)]
@@ -74,13 +77,20 @@ impl HttpReq {
             ));
         }
 
-        let body = match body.trim() {
-            "" => "null",
-            body => body,
-        };
+        let res: ApiResponse = serde_json::from_str(&body)
+            .with_context(|| format!("Failed to parse response of {endpoint}: {body}"))?;
 
-        serde_json::from_str(body)
-            .with_context(|| format!("Failed to parse response of {endpoint}: {body}"))
+        // 根据 retcode 判断请求是否成功
+        if res.retcode != 0 {
+            return Err(anyhow::anyhow!(
+                "Failed to request {endpoint}: retcode {} {}",
+                res.retcode,
+                res.message
+            ));
+        }
+
+        serde_json::from_value(res.data)
+            .with_context(|| format!("Failed to parse data of {endpoint}: {body}"))
     }
 
     /// 获取登录账号的信息
@@ -144,9 +154,9 @@ impl ReQuester for HttpReq {
                 let login_info = self.get_login_info().await?;
 
                 let card = if *count == 0 {
-                    String::new()
+                    format!("{}", login_info.nickname)
                 } else {
-                    format!("在线人数: {}", count)
+                    format!("{} 人在线", count)
                 };
 
                 self.set_group_card(self.group_id, login_info.user_id, &card)
