@@ -2,20 +2,25 @@ mod app;
 mod console;
 mod envconf;
 mod logging;
+mod qq;
 mod server;
 mod types;
 mod warden;
 
 use std::sync::Arc;
-use tokio::task::JoinSet;
+use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
+use tracing::{error, info};
 
 use crate::{app::AppState, console::console, server::http_server, warden::warden};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // 初始化 QQ 通信通道
+    let (tx, rx) = mpsc::channel(100);
+
     // 初始化应用状态
-    let state = Arc::new(AppState::default());
+    let state = Arc::new(AppState::new(tx));
     // 初始化日志系统
     logging::init(&state);
 
@@ -31,13 +36,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 启动关闭信号监听
     set.spawn(shutdown_signal(token));
 
-    // 关键：等所有任务真正退出，main 才会返回
+    // 阻塞等待任务事件
     while let Some(res) = set.join_next().await {
         if let Err(e) = res {
-            tracing::error!("发生 panic: {e}");
+            error!("发生 panic: {e}");
         }
     }
-    tracing::info!("服务已退出");
+    info!("服务已退出");
 
     Ok(())
 }

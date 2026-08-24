@@ -1,18 +1,26 @@
+mod heartbeat;
+
 use std::sync::Arc;
 
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
 use crate::AppState;
 
 /// 启动 HTTP 服务器
-/// 
+///
 /// 这个 HTTP 服务器会接受来自 MCDR 插件发出的请求，并给予相应回复
-/// 
+///
 /// MCDR 有能力通过这个中心服务器获取整个服务器集群的状态
 pub async fn http_server(state: Arc<AppState>, token: CancellationToken) {
-    let app = Router::new().route("/hello", get(hello)).with_state(state);
+    let app = Router::new()
+        .route("/hello", get(hello))
+        .route("/beat", post(heartbeat::beat_for_player))
+        .with_state(state);
 
     // 绑定 TCP 监听器
     let listener = match TcpListener::bind("0.0.0.0:7497").await {
