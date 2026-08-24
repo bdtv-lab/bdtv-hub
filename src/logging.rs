@@ -1,8 +1,6 @@
-use crate::AppState;
+use smaragdine::Printer;
 
-pub fn init(state: &AppState) {
-    let printer = state.printer.clone();
-
+pub fn init(printer: Printer) {
     tracing_subscriber::fmt()
         .with_writer(move || printer.clone())
         .init();

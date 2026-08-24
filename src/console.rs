@@ -24,9 +24,13 @@ pub async fn console(state: Arc<AppState>, token: CancellationToken) {
 
     tokio::select! {
         result = &mut task => match result {
+            // 正常退出
             Ok(Exit::Quit(()) | Exit::Interrupted) => token.cancel(),
+            // 无可用终端
             Ok(Exit::NoTerminal) => {}
+            // 一般错误
             Ok(Exit::Failed(error)) => error!("console error: {error}"),
+            // 致命错误
             Err(error) => {
                 error!("console task failed: {error}");
                 token.cancel();
