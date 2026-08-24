@@ -29,4 +29,5 @@ pub async fn warden(state: Arc<app::State>, token: CancellationToken) {
 async fn check(state: &app::State) {
     trace!("Checking player timeouts");
     state.check_player_timeouts(10).await;
+    state.check_server_timeouts(10).await;
 }

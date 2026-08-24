@@ -31,3 +31,14 @@ pub(super) async fn beat_for_player(
 
     StatusCode::OK
 }
+
+pub(super) async fn beat_for_server(
+    State(state): State<Arc<app::State>>,
+    Json(payload): Json<Server>,
+) -> StatusCode {
+    trace!("Heartbeat received for server {}", payload.name);
+
+    state.mark_server_as_online(payload).await;
+
+    StatusCode::OK
+}

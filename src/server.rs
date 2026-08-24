@@ -19,7 +19,8 @@ use crate::app;
 pub async fn http_server(state: Arc<app::State>, token: CancellationToken) {
     let app = Router::new()
         .route("/hello", get(hello))
-        .route("/beat", post(heartbeat::beat_for_player))
+        .route("/beat/player", post(heartbeat::beat_for_player))
+        .route("/beat/server", post(heartbeat::beat_for_server))
         .with_state(state);
 
     // 绑定 TCP 监听器
