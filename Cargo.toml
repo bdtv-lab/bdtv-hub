@@ -2,6 +2,9 @@
 name = "smc"
 version = "0.1.0"
 edition = "2024"
+authors = ["peter2500zz <peter2500zz@qq.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/bdtv-lab/bdtv-hub"
 
 [dependencies]
 anyhow = "1.0.104"
