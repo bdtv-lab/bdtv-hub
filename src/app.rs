@@ -62,9 +62,17 @@ impl App {
         // 启动控制台
         tasks.spawn(console(Arc::clone(&state), token.clone()));
         // 启动 qq 消息发送
-        tasks.spawn(qq_requester(rx, get_requester(config.clone()), token.clone()));
+        tasks.spawn(qq_requester(
+            rx,
+            get_requester(config.clone()),
+            token.clone(),
+        ));
         // 启动 http 服务器
-        tasks.spawn(http_server(config.clone(), Arc::clone(&state), token.clone()));
+        tasks.spawn(http_server(
+            config.clone(),
+            Arc::clone(&state),
+            token.clone(),
+        ));
         // 启动在线状态巡检
         tasks.spawn(warden(config.clone(), Arc::clone(&state), token.clone()));
         // 启动关闭信号监听

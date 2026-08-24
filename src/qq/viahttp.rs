@@ -1,4 +1,4 @@
-use tracing::debug;
+use tracing::{debug, info};
 
 use anyhow::Result;
 use reqwest::{RequestBuilder, Response};
@@ -20,6 +20,11 @@ impl HttpReq {
             .user_agent("BDTV/1.0")
             .build()
             .unwrap();
+
+        debug!(
+            "HttpReq initialized with base_url: {}, send to group: {}",
+            base_url, group_id
+        );
 
         Self {
             base_url,
@@ -65,20 +70,15 @@ impl HttpReq {
         Ok(res)
     }
 
-    pub async fn get_login_info(&self, group_id: u64, message: &str) -> Result<()> {
-        self.get(
-            "get_login_info",
-            &serde_json::json!({
-                "group_id": group_id,
-                "message": message,
-            }),
-        )
-        .await?;
+    /// 获取登录账号的信息
+    pub async fn get_login_info(&self) -> Result<()> {
+        self.get("get_login_info", &serde_json::json!({})).await?;
 
         Ok(())
     }
 
-    pub async fn send_group_msg(&self, group_id: u64, message: &str) -> Result<()> {
+    /// 发送群聊消息
+    pub async fn send_group_msg(&self, group_id: i64, message: &str) -> Result<()> {
         self.post(
             "send_group_msg",
             &serde_json::json!({
@@ -93,17 +93,24 @@ impl HttpReq {
 }
 
 impl ReQuester for HttpReq {
-    async fn handle_event(&self, event: &app::Event) -> anyhow::Result<()> {
+    async fn handle_event(&self, event: &app::Event) -> Result<()> {
         match event {
             app::Event::PlayerJoined(player) => {
-                debug!(
-                    "Sent message to QQ: Player {} joined server",
+                info!(
+                    "Sending message to QQ: Player {} joined server",
                     player.nickname
                 );
+                self.send_group_msg(self.group_id, &format!("{} 加入了服务器", player.nickname))
+                    .await?;
                 Ok(())
             }
             app::Event::PlayerLeft(player) => {
-                debug!("Sent message to QQ: Player {} left server", player.nickname);
+                info!(
+                    "Sending message to QQ: Player {} left server",
+                    player.nickname
+                );
+                self.send_group_msg(self.group_id, &format!("{} 离开了服务器", player.nickname))
+                    .await?;
                 Ok(())
             }
         }
