@@ -11,7 +11,8 @@ use tracing::{error, info};
 
 use crate::{
     console::console,
-    qq::{DummyReq, qq_requester},
+    envconf::Config,
+    qq::{get_requester, qq_requester},
     server::http_server,
     signal::shutdown_signal,
     warden::warden,
@@ -24,10 +25,11 @@ pub struct App {
     state: Arc<State>,
     token: CancellationToken,
     rx: mpsc::Receiver<Event>,
+    config: Config,
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         // 初始化 QQ 通信通道
         let (tx, rx) = mpsc::channel(100);
 
@@ -37,7 +39,12 @@ impl App {
         // 创建取消 token
         let token = CancellationToken::new();
 
-        Self { state, token, rx }
+        Self {
+            state,
+            token,
+            rx,
+            config,
+        }
     }
 
     pub async fn run(self) {
@@ -45,16 +52,21 @@ impl App {
         let mut tasks = JoinSet::new();
 
         // 分离所有权
-        let App { state, token, rx } = self;
+        let App {
+            state,
+            token,
+            rx,
+            config,
+        } = self;
 
         // 启动控制台
         tasks.spawn(console(Arc::clone(&state), token.clone()));
         // 启动 qq 消息发送
-        tasks.spawn(qq_requester(rx, DummyReq::default(), token.clone()));
+        tasks.spawn(qq_requester(rx, get_requester(config.clone()), token.clone()));
         // 启动 http 服务器
-        tasks.spawn(http_server(Arc::clone(&state), token.clone()));
+        tasks.spawn(http_server(config.clone(), Arc::clone(&state), token.clone()));
         // 启动在线状态巡检
-        tasks.spawn(warden(Arc::clone(&state), token.clone()));
+        tasks.spawn(warden(config.clone(), Arc::clone(&state), token.clone()));
         // 启动关闭信号监听
         tasks.spawn(shutdown_signal(token.clone()));
 

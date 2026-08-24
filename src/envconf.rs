@@ -2,17 +2,18 @@ use std::env;
 
 use dotenvy::dotenv;
 
-const DEFAULT_WS_LISTEN_ADDR: &str = "127.0.0.1:3000";
+const DEFAULT_HTTP_LISTEN_ADDR: &str = "127.0.0.1:3000";
 const DEFAULT_CHECK_INTERVAL: u64 = 5;
 const DEFAULT_TIMEOUT: u64 = 30;
 
+#[derive(Debug, Clone)]
 pub struct Config {
-    qq_http_api_base_url: Option<String>,
-    qq_http_api_token: Option<String>,
-    qq_notice_group_id: Option<u64>,
-    ws_listen_addr: String,
-    check_interval: u64,
-    timeout: u64,
+    pub qq_http_api_base_url: Option<String>,
+    pub qq_http_api_token: Option<String>,
+    pub qq_notice_group_id: Option<u64>,
+    pub http_listen_addr: String,
+    pub check_interval: u64,
+    pub timeout: u64,
 }
 
 pub fn load_env() -> Config {
@@ -24,8 +25,8 @@ pub fn load_env() -> Config {
         qq_notice_group_id: env::var("QQ_NOTICE_GROUP_ID")
             .ok()
             .and_then(|s| s.parse::<u64>().ok()),
-        ws_listen_addr: env::var("WS_LISTEN_ADDR")
-            .unwrap_or_else(|_| DEFAULT_WS_LISTEN_ADDR.to_string()),
+        http_listen_addr: env::var("HTTP_LISTEN_ADDR")
+            .unwrap_or_else(|_| DEFAULT_HTTP_LISTEN_ADDR.to_string()),
         check_interval: env::var("CHECK_INTERVAL")
             .ok()
             .and_then(|s| s.parse::<u64>().ok())

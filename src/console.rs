@@ -14,12 +14,12 @@ pub async fn console(state: Arc<app::State>, token: CancellationToken) {
         .multiline_prompt("/")
         .completion_prompt("/")
         // 以 Minecraft 风格注册命令
-        .command(literal("ping").executes_async(|ctx: &CommandContext<Source<_>>| {
-            ctx.source.printer().print("pong!");
-            async {
-                1
-            }
-        }))
+        .command(
+            literal("ping").executes_async(|ctx: &CommandContext<Source<_>>| {
+                ctx.source.printer().print("pong!");
+                async { 1 }
+            }),
+        )
         .build(state);
 
     let source = console.source();
