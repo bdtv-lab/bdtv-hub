@@ -9,14 +9,14 @@ use axum::{
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
-use crate::AppState;
+use crate::app;
 
 /// 启动 HTTP 服务器
 ///
 /// 这个 HTTP 服务器会接受来自 MCDR 插件发出的请求，并给予相应回复
 ///
 /// MCDR 有能力通过这个中心服务器获取整个服务器集群的状态
-pub async fn http_server(state: Arc<AppState>, token: CancellationToken) {
+pub async fn http_server(state: Arc<app::State>, token: CancellationToken) {
     let app = Router::new()
         .route("/hello", get(hello))
         .route("/beat", post(heartbeat::beat_for_player))

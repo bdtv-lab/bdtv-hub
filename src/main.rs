@@ -8,7 +8,7 @@ mod signal;
 mod types;
 mod warden;
 
-use crate::app::{App, AppState};
+use crate::app::App;
 
 #[tokio::main]
 async fn main() {

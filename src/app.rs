@@ -1,40 +1,19 @@
+mod event;
+mod state;
+
 use std::sync::Arc;
 
 use smaragdine::Printer;
-use tokio::{
-    sync::{Mutex, mpsc},
-    task::JoinSet,
-};
+use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
 use crate::{console::console, server::http_server, signal::shutdown_signal, warden::warden};
-
-pub enum AppEvent {
-    PlayerJoined,
-    PlayerLeft,
-}
-
-#[derive(Debug)]
-pub struct AppState {
-    pub online_players: Mutex<u32>,
-    pub printer: Printer,
-    pub event_tx: mpsc::Sender<AppEvent>,
-}
-
-impl AppState {
-    pub fn new(tx: mpsc::Sender<AppEvent>) -> Self {
-        Self {
-            online_players: Mutex::new(0),
-            printer: Printer::new(),
-            event_tx: tx,
-        }
-    }
-}
+pub use state::State;
 
 /// 应用程序的主结构体
 pub struct App {
-    state: Arc<AppState>,
+    state: Arc<State>,
     token: CancellationToken,
 }
 
@@ -44,7 +23,7 @@ impl App {
         let (tx, rx) = mpsc::channel(100);
 
         // 初始化应用状态
-        let state = Arc::new(AppState::new(tx));
+        let state = Arc::new(State::new(tx));
 
         // 创建取消 token
         let token = CancellationToken::new();
@@ -74,8 +53,8 @@ impl App {
         info!("服务已退出");
     }
 
-    /// 安全获取一份 AppState 的引用
-    fn state(&self) -> Arc<AppState> {
+    /// 安全获取一份 State 的引用
+    fn state(&self) -> Arc<State> {
         Arc::clone(&self.state)
     }
 

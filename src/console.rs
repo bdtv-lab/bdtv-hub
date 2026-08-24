@@ -4,9 +4,9 @@ use smaragdine::{Console, Exit, Source, brigadier::prelude::*};
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 
-use crate::AppState;
+use crate::app;
 
-pub async fn console(state: Arc<AppState>, token: CancellationToken) {
+pub async fn console(state: Arc<app::State>, token: CancellationToken) {
     let console = Console::builder()
         .printer(state.printer.clone())
         .prompt("/")

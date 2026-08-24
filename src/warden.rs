@@ -3,9 +3,9 @@ use std::{sync::Arc, time::Duration};
 use tokio::time;
 use tokio_util::sync::CancellationToken;
 
-use crate::AppState;
+use crate::app;
 
-pub async fn warden(_state: Arc<AppState>, token: CancellationToken) {
+pub async fn warden(_state: Arc<app::State>, token: CancellationToken) {
     let client = reqwest::Client::new();
     let mut ticker = time::interval(Duration::from_secs(30));
     ticker.tick().await;
