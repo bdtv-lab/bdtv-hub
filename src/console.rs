@@ -1,21 +1,24 @@
 use std::sync::Arc;
 
-use smaragdine::{Console, Exit, Source, brigadier::prelude::*};
+use smaragdine::{AsyncConsole, Exit, Source, brigadier::prelude::*};
+use tokio::runtime::Handle;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 
 use crate::app;
 
 pub async fn console(state: Arc<app::State>, token: CancellationToken) {
-    let console = Console::builder()
+    let console = AsyncConsole::builder(Handle::current())
         .printer(state.printer.clone())
         .prompt("/")
         .multiline_prompt("/")
         .completion_prompt("/")
         // 以 Minecraft 风格注册命令
-        .command(literal("ping").executes(|ctx: &CommandContext<Source<_>>| {
+        .command(literal("ping").executes_async(|ctx: &CommandContext<Source<_>>| {
             ctx.source.printer().print("pong!");
-            1
+            async {
+                1
+            }
         }))
         .build(state);
 

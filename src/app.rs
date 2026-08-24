@@ -9,13 +9,21 @@ use tokio::{sync::mpsc, task::JoinSet};
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
 
-use crate::{console::console, server::http_server, signal::shutdown_signal, warden::warden};
+use crate::{
+    console::console,
+    qq::{DummyReq, qq_requester},
+    server::http_server,
+    signal::shutdown_signal,
+    warden::warden,
+};
+pub use event::Event;
 pub use state::State;
 
 /// 应用程序的主结构体
 pub struct App {
     state: Arc<State>,
     token: CancellationToken,
+    rx: mpsc::Receiver<Event>,
 }
 
 impl App {
@@ -24,26 +32,31 @@ impl App {
         let (tx, rx) = mpsc::channel(100);
 
         // 初始化应用状态
-        let state = Arc::new(State::new(tx));
+        let state = Arc::new(State::new(tx.clone()));
 
         // 创建取消 token
         let token = CancellationToken::new();
 
-        Self { state, token }
+        Self { state, token, rx }
     }
 
     pub async fn run(self) {
         // 创建任务集合
         let mut tasks = JoinSet::new();
 
+        // 分离所有权
+        let App { state, token, rx } = self;
+
         // 启动控制台
-        tasks.spawn(console(self.state(), self.token()));
+        tasks.spawn(console(Arc::clone(&state), token.clone()));
+        // 启动 qq 消息发送
+        tasks.spawn(qq_requester(rx, DummyReq::default(), token.clone()));
         // 启动 http 服务器
-        tasks.spawn(http_server(self.state(), self.token()));
+        tasks.spawn(http_server(Arc::clone(&state), token.clone()));
         // 启动在线状态巡检
-        tasks.spawn(warden(self.state(), self.token()));
+        tasks.spawn(warden(Arc::clone(&state), token.clone()));
         // 启动关闭信号监听
-        tasks.spawn(shutdown_signal(self.token()));
+        tasks.spawn(shutdown_signal(token.clone()));
 
         // 阻塞等待任务事件
         while let Some(res) = tasks.join_next().await {
@@ -51,17 +64,8 @@ impl App {
                 error!("发生 panic: {e}");
             }
         }
+
         info!("服务已退出");
-    }
-
-    /// 安全获取一份 State 的引用
-    fn state(&self) -> Arc<State> {
-        Arc::clone(&self.state)
-    }
-
-    /// 安全获取一份 CancellationToken 的引用
-    fn token(&self) -> CancellationToken {
-        self.token.clone()
     }
 
     /// 安全获取一份 Printer 的引用
