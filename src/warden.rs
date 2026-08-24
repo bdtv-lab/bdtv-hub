@@ -2,26 +2,31 @@ use std::{sync::Arc, time::Duration};
 
 use tokio::time;
 use tokio_util::sync::CancellationToken;
+use tracing::trace;
 
 use crate::app;
 
-pub async fn warden(_state: Arc<app::State>, token: CancellationToken) {
-    let client = reqwest::Client::new();
-    let mut ticker = time::interval(Duration::from_secs(30));
+pub async fn warden(state: Arc<app::State>, token: CancellationToken) {
+    // 创建定时器
+    let mut ticker = time::interval(Duration::from_secs(1));
+    // 第一次 tick 立即触发
+    // 也就是跳过第一次的触发逻辑
     ticker.tick().await;
 
     loop {
-        let response = tokio::select! {
-            _ = token.cancelled() => break,
-            response = async {
-                ticker.tick().await;
-                client.get("http://127.0.0.1:7497/hello").send().await
-            } => response,
-        };
+        tokio::select! {
+            _ = ticker.tick() => {
+                check(&state).await;
+            }
 
-        match response {
-            Ok(response) => tracing::info!("self request: {}", response.status()),
-            Err(error) => tracing::error!("self request failed: {error}"),
+            _ = token.cancelled() => {
+                break;
+            }
         }
     }
+}
+
+async fn check(state: &app::State) {
+    trace!("Checking player timeouts");
+    state.check_player_timeouts(10).await;
 }

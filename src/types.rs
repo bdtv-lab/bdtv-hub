@@ -3,7 +3,6 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct Player {
-    pub server: String,
     pub nickname: String,
     pub uuid: Uuid,
 }

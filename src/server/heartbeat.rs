@@ -1,26 +1,33 @@
 use std::sync::Arc;
 
 use axum::{Json, extract::State};
+use reqwest::StatusCode;
 use serde::Deserialize;
 use tracing::trace;
 
-use crate::{app, types::Player};
+use crate::{
+    app,
+    types::{Player, Server},
+};
 
 #[derive(Debug, Clone, Deserialize)]
 pub(super) struct PlayerBeat {
-    pub timestamp: i64,
+    pub server: Server,
     pub player: Player,
 }
 
 pub(super) async fn beat_for_player(
     State(state): State<Arc<app::State>>,
     Json(payload): Json<PlayerBeat>,
-) -> String {
+) -> StatusCode {
     let player = payload.player;
+    let server = payload.server;
     trace!(
-        "Heartbeat received for {}: {}",
-        player.nickname, player.uuid
+        "Heartbeat received for {}: {} in server {}",
+        player.nickname, player.uuid, server.name
     );
 
-    todo!()
+    state.mark_player_as_online(server, player).await;
+
+    StatusCode::OK
 }

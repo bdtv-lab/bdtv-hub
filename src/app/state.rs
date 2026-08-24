@@ -1,4 +1,3 @@
-use core::time;
 use std::collections::HashMap;
 
 use smaragdine::Printer;
@@ -6,6 +5,7 @@ use tokio::{
     sync::{Mutex, mpsc},
     time::Instant,
 };
+use tracing::debug;
 use uuid::Uuid;
 
 use crate::{
@@ -29,41 +29,40 @@ impl State {
         }
     }
 
-    /// 检查给定的 UUID 是否在任何服务器中在线
-    fn uuid_in_any_server(&self, uuid: &Uuid) -> bool {
-        let online_players = self.online_players.try_lock().unwrap();
-        online_players
-            .values()
-            .any(|players| players.contains_key(uuid))
-    }
-
     /// 标记玩家为在线状态
-    pub async fn mark_player_as_online(&mut self, server: Server, player: Player) {
-        // 检查是否任何服务器内都不包含该玩家
-        let is_new = !self.uuid_in_any_server(&player.uuid);
+    pub async fn mark_player_as_online(&self, server: Server, player: Player) {
+        let is_new = {
+            // 获取在线玩家的可变引用
+            let mut online_players = self.online_players.lock().await;
 
-        // 获取在线玩家的可变引用
-        let online_players = self.online_players.get_mut();
+            // 检查是否任何服务器内都不包含该玩家
+            let is_new = !online_players
+                .values()
+                .any(|players| players.contains_key(&player.uuid));
 
-        // 更新玩家的心跳时间
-        online_players
-            .entry(server.clone())
-            .or_insert_with(HashMap::new)
-            .insert(player.uuid, (player.clone(), Instant::now()));
+            // 更新玩家的心跳时间
+            online_players
+                .entry(server.clone())
+                .or_insert_with(HashMap::new)
+                .insert(player.uuid, (player.clone(), Instant::now()));
+
+            is_new
+        };
 
         // 如果是新玩家则发送事件
         if is_new {
+            debug!("Player {} joined server", player.nickname);
             let _ = self.event_tx.send(Event::PlayerJoined(player)).await;
         }
     }
 
     /// 检查玩家是否超时
-    pub async fn check_player_timeouts(&mut self, timeout: u64) {
-        let mut online_players = self.online_players.get_mut();
-        let now = Instant::now();
-
+    pub async fn check_player_timeouts(&self, timeout: u64) {
         // 用于存储超时的玩家
         let mut timeout_players = Vec::new();
+
+        let mut online_players = self.online_players.lock().await;
+        let now = Instant::now();
 
         // 遍历每个服务器的在线玩家
         for (_, players) in online_players.iter_mut() {
@@ -86,6 +85,7 @@ impl State {
 
         // 发送超时玩家离开的事件
         for player in timeout_players {
+            debug!("Player {} left server", player.nickname);
             let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
         }
     }
