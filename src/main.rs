@@ -3,6 +3,7 @@ mod console;
 mod envconf;
 mod logging;
 mod server;
+mod types;
 mod warden;
 
 use std::sync::Arc;
