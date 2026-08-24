@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use tokio::time::Instant;
 use tracing::debug;
@@ -9,6 +9,17 @@ use crate::{
 };
 
 impl State {
+    /// 统计所有服务器内不重复的在线玩家数量
+    async fn unique_player_count(&self) -> usize {
+        self.online_players
+            .lock()
+            .await
+            .values()
+            .flat_map(|players| players.keys())
+            .collect::<HashSet<_>>()
+            .len()
+    }
+
     /// 标记玩家为在线状态
     pub async fn mark_player_as_online(&self, server: Server, player: Player) {
         let is_new = {
@@ -33,6 +44,9 @@ impl State {
         if is_new {
             debug!("Player {} joined server", player.nickname);
             let _ = self.event_tx.send(Event::PlayerJoined(player)).await;
+
+            let count = self.unique_player_count().await;
+            let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
         }
     }
 
@@ -67,6 +81,9 @@ impl State {
         for player in timeout_players {
             debug!("Player {} left server", player.nickname);
             let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
+
+            let count = self.unique_player_count().await;
+            let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
         }
     }
 

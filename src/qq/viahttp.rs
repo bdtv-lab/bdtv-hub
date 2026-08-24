@@ -1,10 +1,16 @@
+mod types;
+
 use tracing::{debug, info};
 
-use anyhow::Result;
-use reqwest::{RequestBuilder, Response};
+use anyhow::{Context, Result};
+use reqwest::RequestBuilder;
+use serde::de::{DeserializeOwned, IgnoredAny};
 use serde_json::Value;
 
-use crate::{app, qq::ReQuester};
+use crate::{
+    app,
+    qq::{ReQuester, viahttp::types::LoginInfo},
+};
 
 #[derive(Debug)]
 pub struct HttpReq {
@@ -37,7 +43,7 @@ impl HttpReq {
     /// 以 GET 请求访问指定接口
     ///
     /// 参数作为 query 附加
-    async fn get(&self, endpoint: &str, params: &Value) -> Result<Response> {
+    async fn get<T: DeserializeOwned>(&self, endpoint: &str, params: &Value) -> Result<T> {
         let url = format!("{}/{endpoint}", self.base_url);
         self.send(self.client.get(&url).query(params), endpoint)
             .await
@@ -46,13 +52,13 @@ impl HttpReq {
     /// 以 POST 请求访问指定接口
     ///
     /// 参数作为 JSON body 发送
-    async fn post(&self, endpoint: &str, data: &Value) -> Result<Response> {
+    async fn post<T: DeserializeOwned>(&self, endpoint: &str, data: &Value) -> Result<T> {
         let url = format!("{}/{endpoint}", self.base_url);
         self.send(self.client.post(&url).json(data), endpoint).await
     }
 
     /// 附加鉴权信息后发送请求
-    async fn send(&self, req: RequestBuilder, endpoint: &str) -> Result<Response> {
+    async fn send<T: DeserializeOwned>(&self, req: RequestBuilder, endpoint: &str) -> Result<T> {
         let req = match &self.token {
             Some(token) => req.bearer_auth(token),
             None => req,
@@ -60,26 +66,45 @@ impl HttpReq {
 
         let res = req.send().await?;
         let status = res.status();
+        let body = res.text().await?;
+
         if !status.is_success() {
             return Err(anyhow::anyhow!(
-                "Failed to request {endpoint}: {status} {}",
-                res.text().await?
+                "Failed to request {endpoint}: {status} {body}"
             ));
         }
 
-        Ok(res)
+        let body = match body.trim() {
+            "" => "null",
+            body => body,
+        };
+
+        serde_json::from_str(body)
+            .with_context(|| format!("Failed to parse response of {endpoint}: {body}"))
     }
 
     /// 获取登录账号的信息
-    pub async fn get_login_info(&self) -> Result<()> {
-        self.get("get_login_info", &serde_json::json!({})).await?;
+    async fn get_login_info(&self) -> Result<LoginInfo> {
+        self.get("get_login_info", &serde_json::json!({})).await
+    }
+
+    async fn set_group_card(&self, group_id: i64, user_id: i64, card: &str) -> Result<()> {
+        self.post::<IgnoredAny>(
+            "set_group_card",
+            &serde_json::json!({
+                "group_id": group_id,
+                "user_id": user_id,
+                "card": card,
+            }),
+        )
+        .await?;
 
         Ok(())
     }
 
     /// 发送群聊消息
-    pub async fn send_group_msg(&self, group_id: i64, message: &str) -> Result<()> {
-        self.post(
+    async fn send_group_msg(&self, group_id: i64, message: &str) -> Result<()> {
+        self.post::<IgnoredAny>(
             "send_group_msg",
             &serde_json::json!({
                 "group_id": group_id,
@@ -110,6 +135,21 @@ impl ReQuester for HttpReq {
                     player.nickname
                 );
                 self.send_group_msg(self.group_id, &format!("{} 离开了服务器", player.nickname))
+                    .await?;
+                Ok(())
+            }
+            app::Event::PlayerCountChanged(count) => {
+                info!("Player count changed to {}", count);
+
+                let login_info = self.get_login_info().await?;
+
+                let card = if *count == 0 {
+                    String::new()
+                } else {
+                    format!("在线人数: {}", count)
+                };
+
+                self.set_group_card(self.group_id, login_info.user_id, &card)
                     .await?;
                 Ok(())
             }
