@@ -1,6 +1,6 @@
 mod heartbeat;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::atomic::AtomicUsize};
 
 use smaragdine::Printer;
 use tokio::{
@@ -14,12 +14,17 @@ use crate::{
     types::{Player, Server},
 };
 
+type OnlineServers = HashMap<Server, Instant>;
+type OnlinePlayers = HashMap<Uuid, (Player, Instant)>;
+
 #[derive(Debug)]
 pub struct State {
-    pub online_players: Mutex<HashMap<Server, HashMap<Uuid, (Player, Instant)>>>,
-    pub online_servers: Mutex<HashMap<Server, Instant>>,
+    pub online_players: Mutex<HashMap<Server, OnlinePlayers>>,
+    pub online_servers: Mutex<OnlineServers>,
     pub printer: Printer,
     pub event_tx: mpsc::Sender<Event>,
+    /// 上次上报的去重在线人数
+    last_reported_count: AtomicUsize,
 }
 
 impl State {
@@ -29,6 +34,7 @@ impl State {
             online_servers: Mutex::new(HashMap::new()),
             printer: Printer::new(),
             event_tx: tx,
+            last_reported_count: AtomicUsize::new(0),
         }
     }
 }

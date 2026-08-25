@@ -1,7 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::atomic::Ordering,
+};
 
 use tokio::time::Instant;
 use tracing::debug;
+
+use uuid::Uuid;
 
 use crate::{
     app::{Event, State},
@@ -18,6 +23,19 @@ impl State {
             .flat_map(|players| players.keys())
             .collect::<HashSet<_>>()
             .len()
+    }
+
+    /// 上报去重后的在线人数
+    pub async fn report_player_count(&self) {
+        let count = self.unique_player_count().await;
+
+        // 与上次上报的值相同则不重复发送
+        if self.last_reported_count.swap(count, Ordering::Relaxed) == count {
+            return;
+        }
+
+        debug!("Player count changed to {count}");
+        let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
     }
 
     /// 标记玩家为在线状态
@@ -43,51 +61,49 @@ impl State {
         // 如果是新玩家则发送事件
         if is_new {
             debug!("Player {} joined server", player.nickname);
-
-            let count = self.unique_player_count().await;
-            let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
-
             let _ = self.event_tx.send(Event::PlayerJoined(player)).await;
         }
     }
 
     /// 检查玩家是否超时
+    ///
+    /// 玩家可能同时在多个服务器上
+    ///
+    /// 只有从所有服务器上都消失才算离开
     pub async fn check_player_timeouts(&self, timeout: u64) {
-        // 用于存储超时的玩家
-        let mut timeout_players = Vec::new();
-
         // 限制锁的作用域
-        {
+        let left_players = {
             let mut online_players = self.online_players.lock().await;
             let now = Instant::now();
 
-            // 遍历每个服务器的在线玩家
-            for (_, players) in online_players.iter_mut() {
-                // 临时存储超时的 UUID
-                // 避免迭代时修改
-                let mut timed_out_uuids = Vec::new();
-
-                // 检查每个玩家的心跳时间
-                for (uuid, (player, last_heartbeat)) in players.iter() {
-                    if now.duration_since(*last_heartbeat).as_secs() > timeout {
-                        timed_out_uuids.push(*uuid);
-                        timeout_players.push(player.clone());
+            // 剔除所有服务器上的超时玩家
+            // 同一名玩家可能在多个服务器上超时
+            let mut timed_out: HashMap<Uuid, Player> = HashMap::new();
+            for players in online_players.values_mut() {
+                players.retain(|uuid, (player, last_heartbeat)| {
+                    let alive = now.duration_since(*last_heartbeat).as_secs() <= timeout;
+                    if !alive {
+                        timed_out.insert(*uuid, player.clone());
                     }
-                }
-
-                for uuid in timed_out_uuids {
-                    players.remove(&uuid);
-                }
+                    alive
+                });
             }
-        }
 
-        // 发送超时玩家离开的事件
-        for player in timeout_players {
+            // 仍然存在的玩家为切换服务器的玩家
+            timed_out
+                .into_iter()
+                .filter(|(uuid, _)| {
+                    !online_players
+                        .values()
+                        .any(|players| players.contains_key(uuid))
+                })
+                .map(|(_, player)| player)
+                .collect::<Vec<_>>()
+        };
+
+        // 发送玩家离开的事件
+        for player in left_players {
             debug!("Player {} left server", player.nickname);
-
-            let count = self.unique_player_count().await;
-            let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
-
             let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
         }
     }

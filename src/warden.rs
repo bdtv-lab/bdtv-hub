@@ -2,7 +2,6 @@ use std::{sync::Arc, time::Duration};
 
 use tokio::time;
 use tokio_util::sync::CancellationToken;
-use tracing::trace;
 
 use crate::{app, envconf::Config};
 
@@ -27,7 +26,7 @@ pub async fn warden(config: Config, state: Arc<app::State>, token: CancellationT
 }
 
 async fn check(state: &app::State, timeout: u64) {
-    trace!("Checking player timeouts");
     state.check_player_timeouts(timeout).await;
     state.check_server_timeouts(timeout).await;
+    state.report_player_count().await;
 }
