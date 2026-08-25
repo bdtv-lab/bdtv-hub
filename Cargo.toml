@@ -1,5 +1,5 @@
 [package]
-name = "smc"
+name = "bdtv-hub"
 version = "0.1.0"
 edition = "2024"
 authors = ["peter2500zz <peter2500zz@qq.com>"]
@@ -9,6 +9,7 @@ repository = "https://github.com/bdtv-lab/bdtv-hub"
 [dependencies]
 anyhow = "1.0.104"
 axum = "0.8.9"
+azalea-chat = "0.16.0"
 dotenvy = "0.15.7"
 reqwest = { version = "0.13.4", features = ["json", "query"] }
 serde = { version = "1.0.229", features = ["derive"] }

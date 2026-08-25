@@ -1,17 +1,8 @@
-mod app;
-mod console;
-mod envconf;
-mod logging;
-mod qq;
-mod server;
-mod signal;
-mod types;
-mod warden;
-
-use crate::{app::App, envconf::load_env};
+use bdtv_hub::{App, load_env, logging};
 
 #[tokio::main]
 async fn main() {
+    // 加载环境变量配置
     let config = load_env();
 
     // 创建应用程序实例
