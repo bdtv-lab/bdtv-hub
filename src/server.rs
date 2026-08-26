@@ -1,3 +1,4 @@
+mod goto;
 mod heartbeat;
 mod motd;
 
@@ -21,6 +22,7 @@ pub async fn http_server(config: Config, state: Arc<app::State>, token: Cancella
     let app = Router::new()
         .route("/motd", get(motd::get_motd))
         .route("/beat", post(heartbeat::beat))
+        .route("/servers", get(goto::get_servers))
         .with_state(state);
 
     // 绑定 TCP 监听器
