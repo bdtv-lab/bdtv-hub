@@ -4,7 +4,7 @@ use std::{
 };
 
 use tokio::time::Instant;
-use tracing::debug;
+use tracing::{debug, info};
 
 use uuid::Uuid;
 
@@ -39,7 +39,7 @@ impl State {
     }
 
     /// 标记玩家为在线状态
-    pub async fn mark_player_as_online(&self, server: Server, player: Player) {
+    pub async fn mark_player_as_online(&self, server: &Server, player: &Player) {
         let is_new = {
             // 获取在线玩家的可变引用
             let mut online_players = self.online_players.lock().await;
@@ -60,8 +60,11 @@ impl State {
 
         // 如果是新玩家则发送事件
         if is_new {
-            debug!("Player {} joined server", player.nickname);
-            let _ = self.event_tx.send(Event::PlayerJoined(player)).await;
+            info!("Player {} joined server", player.nickname);
+            let _ = self
+                .event_tx
+                .send(Event::PlayerJoined(player.clone()))
+                .await;
         }
     }
 
@@ -103,19 +106,19 @@ impl State {
 
         // 发送玩家离开的事件
         for player in left_players {
-            debug!("Player {} left server", player.nickname);
+            info!("Player {} left server", player.nickname);
             let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
         }
     }
 
-    pub async fn mark_server_as_online(&self, server: Server) {
+    pub async fn mark_server_as_online(&self, server: &Server) {
         let mut online_servers = self.online_servers.lock().await;
         let is_new = online_servers
             .insert(server.clone(), Instant::now())
             .is_none();
 
         if is_new {
-            debug!("Server {} is online", server.nickname);
+            info!("Server {} is online", server.nickname);
         }
     }
 
@@ -133,7 +136,7 @@ impl State {
 
         for server in timeout_servers {
             online_servers.remove(&server);
-            debug!("Server {} is offline", server.nickname);
+            info!("Server {} is offline", server.nickname);
         }
     }
 }

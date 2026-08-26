@@ -11,34 +11,25 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Deserialize)]
-pub(super) struct PlayerBeat {
+pub(super) struct HeartBeat {
     pub server: Server,
-    pub player: Player,
+    pub players: Vec<Player>,
 }
 
-pub(super) async fn beat_for_player(
+pub(super) async fn beat(
     State(state): State<Arc<app::State>>,
-    Json(payload): Json<PlayerBeat>,
+    Json(payload): Json<HeartBeat>,
 ) -> StatusCode {
-    let player = payload.player;
+    let players = payload.players;
     let server = payload.server;
-    trace!(
-        "Heartbeat received for {}: {} in server {}",
-        player.nickname, player.uuid, server.nickname
-    );
 
-    state.mark_player_as_online(server, player).await;
+    trace!("Heartbeat received for server {}, with {} players", server.slug, players.len());
 
-    StatusCode::OK
-}
+    state.mark_server_as_online(&server).await;
 
-pub(super) async fn beat_for_server(
-    State(state): State<Arc<app::State>>,
-    Json(payload): Json<Server>,
-) -> StatusCode {
-    trace!("Heartbeat received for server {}", payload.nickname);
-
-    state.mark_server_as_online(payload).await;
+    for player in players {
+        state.mark_player_as_online(&server, &player).await;
+    }
 
     StatusCode::OK
 }

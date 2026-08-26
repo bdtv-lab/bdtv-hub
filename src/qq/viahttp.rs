@@ -1,6 +1,6 @@
 mod types;
 
-use tracing::{debug, info};
+use tracing::debug;
 
 use anyhow::{Context, Result};
 use reqwest::RequestBuilder;
@@ -131,7 +131,7 @@ impl ReQuester for HttpReq {
     async fn handle_event(&self, event: &app::Event) -> Result<()> {
         match event {
             app::Event::PlayerJoined(player) => {
-                info!(
+                debug!(
                     "Sending message to QQ: Player {} joined server",
                     player.nickname
                 );
@@ -140,7 +140,7 @@ impl ReQuester for HttpReq {
                 Ok(())
             }
             app::Event::PlayerLeft(player) => {
-                info!(
+                debug!(
                     "Sending message to QQ: Player {} left server",
                     player.nickname
                 );
@@ -149,8 +149,6 @@ impl ReQuester for HttpReq {
                 Ok(())
             }
             app::Event::PlayerCountChanged(count) => {
-                info!("Player count changed to {}", count);
-
                 let login_info = self.get_login_info().await?;
 
                 let card = if *count == 0 {
