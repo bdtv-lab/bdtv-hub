@@ -157,6 +157,7 @@ dependencies = [
  "axum",
  "azalea-chat",
  "dotenvy",
+ "kyori-component-json",
  "reqwest",
  "serde",
  "serde_json",
@@ -961,6 +962,16 @@ dependencies = [
  "cfg-if",
  "futures-util",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "kyori-component-json"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4e221e492f9b93cbc445d583d6c1baa5edb90a45b96b9f416ca2eeaed5210b8"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

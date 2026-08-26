@@ -24,7 +24,7 @@ pub(super) async fn beat_for_player(
     let server = payload.server;
     trace!(
         "Heartbeat received for {}: {} in server {}",
-        player.nickname, player.uuid, server.name
+        player.nickname, player.uuid, server.nickname
     );
 
     state.mark_player_as_online(server, player).await;
@@ -36,7 +36,7 @@ pub(super) async fn beat_for_server(
     State(state): State<Arc<app::State>>,
     Json(payload): Json<Server>,
 ) -> StatusCode {
-    trace!("Heartbeat received for server {}", payload.name);
+    trace!("Heartbeat received for server {}", payload.nickname);
 
     state.mark_server_as_online(payload).await;
 

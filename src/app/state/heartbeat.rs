@@ -115,7 +115,7 @@ impl State {
             .is_none();
 
         if is_new {
-            debug!("Server {} is online", server.name);
+            debug!("Server {} is online", server.nickname);
         }
     }
 
@@ -133,7 +133,7 @@ impl State {
 
         for server in timeout_servers {
             online_servers.remove(&server);
-            debug!("Server {} is offline", server.name);
+            debug!("Server {} is offline", server.nickname);
         }
     }
 }
