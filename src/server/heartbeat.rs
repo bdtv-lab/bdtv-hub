@@ -23,7 +23,11 @@ pub(super) async fn beat(
     let players = payload.players;
     let server = payload.server;
 
-    trace!("Heartbeat received for server {}, with {} players", server.slug, players.len());
+    trace!(
+        "Heartbeat received for server {}, with {} players",
+        server.slug,
+        players.len()
+    );
 
     state.mark_server_as_online(&server).await;
 
