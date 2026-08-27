@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use kyori_component_json::{ClickEvent, Color, Component, HoverEvent, NamedColor, UuidRepr};
 
@@ -18,15 +18,35 @@ pub async fn build_motd(state: Arc<app::State>) -> Component {
 
     let online_players = state.online_players.lock().await;
 
+    // 同一玩家可能同时存在于多个服务器
+    // 只保留心跳最新的那一条
+    let mut latest = HashMap::new();
+    // 遍历服务器
+    for (server, players) in online_players.iter() {
+        // 遍历玩家
+        for (uuid, (player, last_heartbeat)) in players.iter() {
+            let entry = latest
+                .entry(uuid)
+                .or_insert((server, player, last_heartbeat));
+            // 如果心跳更新，则替换之前的
+            if last_heartbeat > entry.2 {
+                *entry = (server, player, last_heartbeat);
+            }
+        }
+    }
+
+    // 按去重后的归属服务器重新分组
+    let mut grouped = HashMap::new();
+    for (server, player, _) in latest.into_values() {
+        grouped.entry(server).or_insert_with(Vec::new).push(player);
+    }
+
     // 给服务器排个序
-    let mut servers: Vec<_> = online_players
-        .iter()
-        .filter(|(_, players)| !players.is_empty())
-        .collect();
+    let mut servers: Vec<_> = grouped.into_iter().collect();
     servers.sort_by(|(a, _), (b, _)| a.slug.cmp(&b.slug));
 
     // 采用索引计数以绘制分隔符
-    for (index, (server, server_players)) in servers.into_iter().enumerate() {
+    for (index, (server, mut server_players)) in servers.into_iter().enumerate() {
         if index > 0 {
             motd.push(Component::from("\n"));
         }
@@ -46,10 +66,9 @@ pub async fn build_motd(state: Arc<app::State>) -> Component {
         motd.push(Component::from(" "));
 
         // 给玩家也排序
-        let mut players: Vec<_> = server_players.values().collect();
-        players.sort_by_key(|(player, _)| player.nickname.to_lowercase());
+        server_players.sort_by_key(|player| player.nickname.to_lowercase());
 
-        for (index, (player, _)) in players.into_iter().enumerate() {
+        for (index, player) in server_players.into_iter().enumerate() {
             if index > 0 {
                 motd.push(Component::text(", ").color(Some(Color::Named(NamedColor::White))));
             }
