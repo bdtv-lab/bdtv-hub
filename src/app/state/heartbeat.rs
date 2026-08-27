@@ -45,7 +45,7 @@ impl State {
             let mut online_players = self.online_players.lock().await;
 
             // 检查所在服务器是否不包含该玩家
-            let is_new = online_players
+            let is_new = !online_players
                 .entry(server.clone())
                 .or_default()
                 .contains_key(&player.uuid);
