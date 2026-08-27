@@ -1,7 +1,11 @@
 use bdtv_hub::{App, load_env, logging};
+use dotenvy::dotenv;
 
 #[tokio::main]
 async fn main() {
+    // 加载 .env 文件到环境变量
+    dotenv().ok();
+
     // 加载环境变量配置
     let config = load_env();
 

@@ -1,7 +1,5 @@
 use std::env;
 
-use dotenvy::dotenv;
-
 const DEFAULT_HTTP_LISTEN_ADDR: &str = "127.0.0.1:7497";
 const DEFAULT_CHECK_INTERVAL: u64 = 5;
 const DEFAULT_TIMEOUT: u64 = 30;
@@ -27,8 +25,6 @@ fn env_var(key: &str) -> Option<String> {
 }
 
 pub fn load_env() -> Config {
-    dotenv().ok();
-
     Config {
         qq_http_api_base_url: env_var("QQ_HTTP_API_BASE_URL"),
         qq_http_api_token: env_var("QQ_HTTP_API_TOKEN"),
