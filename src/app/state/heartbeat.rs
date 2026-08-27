@@ -75,7 +75,7 @@ impl State {
         // 否则检查是否是已有玩家加入服务器
         else if is_new {
             info!(
-                "Living player {} joined server {}",
+                "Player {} joined another server {}",
                 player.nickname, server.slug
             );
         }
@@ -105,21 +105,29 @@ impl State {
                 });
             }
 
-            // 仍然存在的玩家为切换服务器的玩家
-            timed_out
-                .into_iter()
-                .filter(|(uuid, _)| {
-                    !online_players
-                        .values()
-                        .any(|players| players.contains_key(uuid))
-                })
-                .map(|(_, player)| player)
-                .collect::<Vec<_>>()
+            // 仍然存在于其他服务器的玩家为切换服务器的玩家
+            let mut left_players = Vec::new();
+            for (uuid, (server, player)) in timed_out {
+                let still_online = online_players
+                    .values()
+                    .any(|players| players.contains_key(&uuid));
+
+                if still_online {
+                    info!("Player {} left server {}", player.nickname, server.slug);
+                } else {
+                    left_players.push((server, player));
+                }
+            }
+
+            left_players
         };
 
         // 发送玩家离开的事件
         for (server, player) in left_players {
-            info!("Player {} left server {}", player.nickname, server.slug);
+            info!(
+                "Player {} left server {} as last",
+                player.nickname, server.slug
+            );
             let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
         }
     }
