@@ -34,18 +34,24 @@ impl State {
             return;
         }
 
-        debug!("Player count changed to {count}");
+        debug!("Unique player count changed to {count}");
         let _ = self.event_tx.send(Event::PlayerCountChanged(count)).await;
     }
 
     /// 标记玩家为在线状态
     pub async fn mark_player_as_online(&self, server: &Server, player: &Player) {
-        let is_new = {
+        let (is_new, is_unique_new) = {
             // 获取在线玩家的可变引用
             let mut online_players = self.online_players.lock().await;
 
+            // 检查所在服务器是否不包含该玩家
+            let is_new = online_players
+                .entry(server.clone())
+                .or_default()
+                .contains_key(&player.uuid);
+
             // 检查是否任何服务器内都不包含该玩家
-            let is_new = !online_players
+            let is_unique_new = !online_players
                 .values()
                 .any(|players| players.contains_key(&player.uuid));
 
@@ -55,16 +61,23 @@ impl State {
                 .or_insert_with(HashMap::new)
                 .insert(player.uuid, (player.clone(), Instant::now()));
 
-            is_new
+            (is_new, is_unique_new)
         };
 
-        // 如果是新玩家则发送事件
-        if is_new {
+        // 如果是所有服务器中的新玩家则发送事件
+        if is_unique_new {
             info!("Player {} joined server {}", player.nickname, server.slug);
             let _ = self
                 .event_tx
                 .send(Event::PlayerJoined(player.clone()))
                 .await;
+        }
+        // 否则检查是否是已有玩家加入服务器
+        else if is_new {
+            info!(
+                "Living player {} joined server {}",
+                player.nickname, server.slug
+            );
         }
     }
 

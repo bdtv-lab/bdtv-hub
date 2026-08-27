@@ -116,7 +116,7 @@ dependencies = [
 [[package]]
 name = "azalea-brigadier"
 version = "0.16.0+mc26.2"
-source = "git+https://github.com/peter2500zz/azalea?branch=feature%2Fasync-brigadier#0fe189f3e02993be63826f9c26da9b78641b365b"
+source = "git+https://github.com/peter2500zz/azalea?branch=smaragdine#762fb8071a11efa212e3e50f986c84160fd1ee47"
 dependencies = [
  "parking_lot",
 ]
@@ -1690,8 +1690,8 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "smaragdine"
-version = "0.1.5"
-source = "git+https://github.com/peter2500zz/smaragdine.git?branch=feature%2Fasync-console#675065c0e3cb304e9cd843fbce5282821bef2a66"
+version = "0.2.0"
+source = "git+https://github.com/peter2500zz/smaragdine.git#90ad1da7500aef0916a1db9db8cb32ee2214822e"
 dependencies = [
  "azalea-brigadier",
  "crossbeam",
