@@ -60,7 +60,7 @@ impl State {
 
         // 如果是新玩家则发送事件
         if is_new {
-            info!("Player {} joined server", player.nickname);
+            info!("Player {} joined server {}", player.nickname, server.slug);
             let _ = self
                 .event_tx
                 .send(Event::PlayerJoined(player.clone()))
@@ -81,12 +81,12 @@ impl State {
 
             // 剔除所有服务器上的超时玩家
             // 同一名玩家可能在多个服务器上超时
-            let mut timed_out: HashMap<Uuid, Player> = HashMap::new();
-            for players in online_players.values_mut() {
+            let mut timed_out: HashMap<Uuid, (Server, Player)> = HashMap::new();
+            for (server, players) in online_players.iter_mut() {
                 players.retain(|uuid, (player, last_heartbeat)| {
                     let alive = now.duration_since(*last_heartbeat).as_secs() <= timeout;
                     if !alive {
-                        timed_out.insert(*uuid, player.clone());
+                        timed_out.insert(*uuid, (server.clone(), player.clone()));
                     }
                     alive
                 });
@@ -105,8 +105,8 @@ impl State {
         };
 
         // 发送玩家离开的事件
-        for player in left_players {
-            info!("Player {} left server", player.nickname);
+        for (server, player) in left_players {
+            info!("Player {} left server {}", player.nickname, server.slug);
             let _ = self.event_tx.send(Event::PlayerLeft(player)).await;
         }
     }
@@ -118,7 +118,7 @@ impl State {
             .is_none();
 
         if is_new {
-            info!("Server {} is online", server.nickname);
+            info!("Server {} is online", server.slug);
         }
     }
 
@@ -136,7 +136,7 @@ impl State {
 
         for server in timeout_servers {
             online_servers.remove(&server);
-            info!("Server {} is offline", server.nickname);
+            info!("Server {} is offline", server.slug);
         }
     }
 }
