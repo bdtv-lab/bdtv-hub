@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use axum::{Json, extract::State};
-use reqwest::StatusCode;
 use serde::Deserialize;
 use tracing::trace;
 
@@ -11,15 +9,12 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Deserialize)]
-pub(super) struct HeartBeat {
+pub struct HeartBeat {
     pub server: Server,
     pub players: Vec<Player>,
 }
 
-pub(super) async fn beat(
-    State(state): State<Arc<app::State>>,
-    Json(payload): Json<HeartBeat>,
-) -> StatusCode {
+pub(super) async fn beat(state: Arc<app::State>, payload: HeartBeat) {
     let players = payload.players;
     let server = payload.server;
 
@@ -34,6 +29,4 @@ pub(super) async fn beat(
     for player in players {
         state.mark_player_as_online(&server, &player).await;
     }
-
-    StatusCode::OK
 }

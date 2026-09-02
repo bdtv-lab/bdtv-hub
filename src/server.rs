@@ -1,13 +1,10 @@
 mod goto;
-mod heartbeat;
 mod motd;
+mod ws;
 
 use std::sync::Arc;
 
-use axum::{
-    Router,
-    routing::{get, post},
-};
+use axum::{Router, routing::get};
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
@@ -21,8 +18,8 @@ use crate::{app, envconf::Config};
 pub async fn http_server(config: Config, state: Arc<app::State>, token: CancellationToken) {
     let app = Router::new()
         .route("/motd", get(motd::get_motd))
-        .route("/beat", post(heartbeat::beat))
         .route("/servers", get(goto::get_servers))
+        .route("/ws", get(ws::ws_connect))
         .with_state(state);
 
     // 绑定 TCP 监听器

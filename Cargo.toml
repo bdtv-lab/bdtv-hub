@@ -8,7 +8,7 @@ repository = "https://github.com/bdtv-lab/bdtv-hub"
 
 [dependencies]
 anyhow = "1.0.104"
-axum = "0.8.9"
+axum = { version = "0.8.9", features = ["ws"] }
 azalea-chat = "0.16.0"
 dotenvy = "0.15.7"
 kyori-component-json = "0.2.1"
