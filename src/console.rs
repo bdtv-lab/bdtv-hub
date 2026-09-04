@@ -1,3 +1,5 @@
+mod list;
+
 use std::sync::Arc;
 
 use smaragdine::{AsyncConsole, Exit, Source, brigadier::prelude::*};
@@ -7,19 +9,20 @@ use tracing::error;
 
 use crate::app;
 
+type Src = Source<Arc<app::State>>;
+
 pub async fn console(state: Arc<app::State>, token: CancellationToken) {
     let console = AsyncConsole::builder(Handle::current())
         .printer(state.printer.clone())
-        .prompt("/")
-        .multiline_prompt("/")
-        .completion_prompt("/")
+        .prompt("/ ")
+        .multiline_prompt("| ")
+        .completion_prompt("? ")
         // 以 Minecraft 风格注册命令
-        .command(
-            literal("ping").executes_async(|ctx: &CommandContext<Source<_>>| {
-                ctx.source.printer().print("pong!");
-                async { 1 }
-            }),
-        )
+        .command(literal("ping").executes_async(|ctx: &CommandContext<Src>| {
+            ctx.source.printer().print("pong!");
+            async { 1 }
+        }))
+        .commands(list::register)
         .build(state);
 
     let source = console.source();

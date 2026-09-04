@@ -2,3 +2,4 @@ mod list;
 mod motd;
 
 pub use motd::motd;
+pub use list::list;
