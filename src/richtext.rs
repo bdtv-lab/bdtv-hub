@@ -1,3 +1,4 @@
+mod list;
 mod motd;
 
-pub use motd::build_motd;
+pub use motd::motd;
