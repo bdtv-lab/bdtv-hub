@@ -27,10 +27,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/target/release/bdtv-hub /usr/local/bin/
+COPY --from=builder /build/target/release/bdtv_hub /usr/local/bin/
 
 WORKDIR /app
 
 EXPOSE 7497
 
-CMD ["bdtv-hub"]
+CMD ["bdtv_hub"]
